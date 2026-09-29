@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What shall we do?</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2e2c4;--ink:#2b1608;--card:#fbeed2;--line:#c99a5b;--accent:#a85a1f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c120a;--ink:#f2e2c4;--card:#2b1c10;--line:#5c3c1c;--accent:#e08a2c}}
+:root[data-theme="dark"]{--bg:#1c120a;--ink:#f2e2c4;--card:#2b1c10;--line:#5c3c1c;--accent:#e08a2c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.4}
+main{max-width:520px;margin:0 auto;padding:24px 18px 48px}
+h1{font-size:clamp(2rem,9vw,2.8rem);font-weight:800;line-height:1;margin:8px 0 6px;letter-spacing:-.02em}
+.sub{margin:0 0 20px;opacity:.75}
+.stage{position:relative;width:min(100%,380px);margin:0 auto}
+canvas{width:100%;height:auto;display:block;will-change:transform}
+.pin{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:26px solid var(--ink);z-index:2}
+.hub{position:absolute;inset:0;margin:auto;width:76px;height:76px;border-radius:50%;background:var(--ink);color:var(--bg);border:0;font:800 1rem "Bricolage Grotesque",system-ui,sans-serif;cursor:pointer;box-shadow:0 0 0 6px var(--bg)}
+.hub:disabled{opacity:.6;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.result{min-height:88px;text-align:center;margin:22px 0 8px}
+.result b{display:block;font-size:clamp(1.6rem,7vw,2.2rem);font-weight:800;line-height:1.1}
+.result span{opacity:.7}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.btn{font:700 .95rem "Bricolage Grotesque",system-ui,sans-serif;border:2px solid var(--ink);background:transparent;color:var(--ink);border-radius:999px;padding:9px 16px;cursor:pointer}
+.btn.fill{background:var(--ink);color:var(--bg)}
+section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:22px}
+h2{font-size:1.1rem;margin:0 0 10px}
+form{display:flex;gap:8px}
+input{flex:1;min-width:0;font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+ul{list-style:none;margin:12px 0 0;padding:0}
+li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+li i{width:12px;height:12px;border-radius:50%;flex:none}
+li span{flex:1;overflow-wrap:anywhere}
+li button{border:0;background:none;color:var(--ink);opacity:.6;font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.empty{opacity:.7;margin:12px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>What shall we do?</h1>
+  <p class="sub">Tap the middle and let the wheel choose. Add or remove ideas below.</p>
+
+  <div class="stage">
+    <div class="pin"></div>
+    <canvas id="wheel" width="760" height="760" aria-label="Wheel of ideas"></canvas>
+    <button class="hub" id="spin">Spin</button>
+  </div>
+
+  <div class="result" id="result" aria-live="polite"></div>
+  <div class="row" id="after" hidden>
+    <button class="btn fill" id="done">Done, remove it</button>
+    <button class="btn" id="again">Spin again</button>
+  </div>
+
+  <section>
+    <h2>Our list</h2>
+    <form id="form">
+      <input id="new" placeholder="Add something to do" maxlength="60" autocomplete="off" aria-label="New idea">
+      <button class="btn fill" type="submit">Add</button>
+    </form>
+    <ul id="list"></ul>
+    <p class="empty" id="empty" hidden>Nothing here yet. Add at least two ideas to spin.</p>
+  </section>
+</main>
+
+<script>
+var COLORS=["#d9a55c","#c68a3f","#e0b774","#b87a33","#eac48a","#cf9650"];
+var DEFAULTS=["Bass lake", "Red barn", "Crackers Zack", "Bounce", "City rock", "Paintball", "Pierneef kraal", "Rooted", "Lion & Safari Park", "Allaturka", "Jhb zoo", "Lory park zoo", "Clay cafe", "Art Galleries", "Ludwig Roses", "Milkshake Irene Farm", "Blue crane", "Geekhouse", "Safari", "Golden hour", "Blouhond", "Monte Casino", "Cradle of human", "On the case, murder mystery", "Couch Clues", "Prison Break", "Kleinkaap", "All day breakfast by The Tasting Room waterkloof - R35", "Trent Art Gallery Waterkloof", "Magnolia dell park", "Sammy marks museum", "Die Bosveld", "Vula food shack", "Moka social club", "Graze cafe", "Capital craft", "National heritage site freedom park", "Javett art centre", "Nkwe", "Candlelight concert", "Beyond bowling", "Pretoria botanical gardens", "Air force museum", "Horse riding adventures pta", "Total ninja", "Rollercade Menlyn", "Dyno karting", "Hazel food market", "Dinokeng", "Magic bus waterkloof", "Bus stop 7", "Austin Robert’s bird sanctuary", "Jan cilliers park", "Roadtrip to Cullinan", "Carabella restaurant", "Wine tasting at Kieviets Kroon", "Milkshake tasting at Irene farm", "IC Cafe", "Diep in die berg"];
+var items=[],rot=0,spinning=false,picked=-1;
+try{var s=localStorage.getItem("wsd-items-v2");items=s?JSON.parse(s):DEFAULTS.slice()}catch(e){items=DEFAULTS.slice()}
+if(!Array.isArray(items))items=DEFAULTS.slice();
+
+var cv=document.getElementById("wheel"),ctx=cv.getContext("2d");
+var spinBtn=document.getElementById("spin"),res=document.getElementById("result"),after=document.getElementById("after");
+
+function save(){try{localStorage.setItem("wsd-items-v2",JSON.stringify(items))}catch(e){}}
+
+function draw(){
+  var W=cv.width,c=W/2,r=c-6,n=items.length;
+  ctx.clearRect(0,0,W,W);
+  if(!n){ctx.fillStyle="#d9ccc2";ctx.beginPath();ctx.arc(c,c,r,0,7);ctx.fill();return}
+  var seg=2*Math.PI/n;
+  for(var i=0;i<n;i++){
+    var a=-Math.PI/2+i*seg;
+    ctx.beginPath();ctx.moveTo(c,c);ctx.arc(c,c,r,a,a+seg);ctx.closePath();
+    ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.9)";ctx.lineWidth=n>14?2:4;ctx.stroke();
+    if(n>14)continue;
+    ctx.save();ctx.translate(c,c);ctx.rotate(a+seg/2);
+    ctx.fillStyle="#2b1608";ctx.font="700 "+(n>10?26:32)+"px 'Bricolage Grotesque',system-ui,sans-serif";
+    ctx.textAlign="right";ctx.textBaseline="middle";
+    var t=items[i];if(t.length>18)t=t.slice(0,17)+"…";
+    ctx.fillText(t,r-24,0);ctx.restore();
+  }
+  drawSpots(c,c,r);
+}
+
+function drawSpots(cx,cy,r){
+  var rnd=mulberry32(42);
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.clip();
+  var count=Math.round(r*r/900);
+  for(var i=0;i<count;i++){
+    var ang=rnd()*Math.PI*2,rad=Math.sqrt(rnd())*r;
+    var x=cx+Math.cos(ang)*rad,y=cy+Math.sin(ang)*rad;
+    var s=6+rnd()*16;
+    var blobs=3+Math.floor(rnd()*3);
+    ctx.fillStyle="rgba(40,22,10,.55)";
+    for(var k=0;k<blobs;k++){
+      var ba=rnd()*Math.PI*2,br=s*0.55;
+      var bx=x+Math.cos(ba)*br,by=y+Math.sin(ba)*br;
+      ctx.beginPath();ctx.ellipse(bx,by,s*(0.5+rnd()*0.4),s*(0.4+rnd()*0.35),rnd()*Math.PI,0,7);ctx.fill();
+    }
+    ctx.fillStyle="rgba(120,74,32,.5)";
+    ctx.beginPath();ctx.ellipse(x,y,s*0.45,s*0.35,rnd()*Math.PI,0,7);ctx.fill();
+  }
+  ctx.restore();
+}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296}}
+
+function renderList(){
+  var ul=document.getElementById("list");ul.innerHTML="";
+  items.forEach(function(t,i){
+    var li=document.createElement("li");
+    var dot=document.createElement("i");dot.style.background=COLORS[i%COLORS.length];
+    var sp=document.createElement("span");sp.textContent=t;
+    var b=document.createElement("button");b.textContent="×";b.setAttribute("aria-label","Remove "+t);
+    b.onclick=function(){items.splice(i,1);change()};
+    li.append(dot,sp,b);ul.appendChild(li);
+  });
+  document.getElementById("empty").hidden=items.length>=2;
+  spinBtn.disabled=items.length<2||spinning;
+}
+
+function change(){
+  rot=0;cv.style.transform="rotate(0deg)";
+  picked=-1;res.innerHTML="";after.hidden=true;
+  save();draw();renderList();
+}
+
+function finish(){
+  spinning=false;
+  res.innerHTML="<span>Tonight we're doing</span><b></b>";
+  res.querySelector("b").textContent=items[picked];
+  after.hidden=false;renderList();
+}
+
+function spin(){
+  if(spinning||items.length<2)return;
+  spinning=true;spinBtn.disabled=true;after.hidden=true;res.innerHTML="";
+  var n=items.length,seg=360/n;
+  picked=Math.floor(Math.random()*n);
+  var center=(picked+0.5)*seg+(Math.random()-.5)*seg*.6;
+  var cur=((rot%360)+360)%360;
+  var start=rot,target=rot+(360-cur)+(360-center)+360*12,delta=target-start,DUR=10000,t0=null;
+  function step(ts){
+    if(t0===null)t0=ts;
+    var p=Math.min((ts-t0)/DUR,1),e=1-Math.pow(1-p,4);
+    cv.style.transform="rotate("+(start+delta*e)+"deg)";
+    if(p<1)requestAnimationFrame(step);
+    else{rot=target;finish()}
+  }
+  requestAnimationFrame(step);
+}
+
+spinBtn.onclick=spin;
+document.getElementById("again").onclick=spin;
+document.getElementById("done").onclick=function(){if(picked>-1){items.splice(picked,1);change()}};
+document.getElementById("form").onsubmit=function(e){
+  e.preventDefault();
+  var inp=document.getElementById("new"),v=inp.value.trim();
+  if(v){items.push(v);inp.value="";change()}
+};
+
+draw();renderList();
+if(document.fonts)document.fonts.ready.then(draw);
+</script>
+</body>
+</html>
